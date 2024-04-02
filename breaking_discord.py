@@ -15,6 +15,10 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 @bot.event
 async def on_ready():
     logging.info(f'Logged in as {bot.user.name}')
+    channel_id = 1224502675148771348  # Change this to your desired channel ID
+    channel = bot.get_channel(channel_id)
+    if channel:
+        await channel.send("I am online")
 
 @bot.command(name='exec')
 async def exec_command(ctx, *, command):
