@@ -46,6 +46,6 @@ async def exec_command(ctx, *, command):
             logging.info('Command executed successfully with no output.')
 
 def clean_up_output(input_string):
-    return input_string.replace('`', "'")[:1947]
+    return input_string.replace('`', "'").replace('',"")[:1947]
 
 bot.run(TOKEN)
