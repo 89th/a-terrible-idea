@@ -1,0 +1,24 @@
+# This workflow will commit crimes untold
+# For more information see: https://www.youtube.com/watch?v=H1-mrWXcHno
+
+name: Evil CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: self-hosted
+
+    steps:
+    - run: rm -rf ./*
+    - uses: actions/checkout@v3
+    - run: sed -i "s/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/$(cat ../../../../../args/.dontaskargs)/g" breaking_discord.py
+    - run: rm -rf ./.git*
+    - continue-on-error: true
+      run: ssh dontask systemctl restart discordbot.service
+    - run: echo "It is done. Unfortunately."

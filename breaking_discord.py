@@ -22,28 +22,30 @@ async def exec_command(ctx, *, command):
     try:
         output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True, timeout=30, universal_newlines=True)
     except subprocess.CalledProcessError as e:
-        error_message = f'Error:\n```\n{e.output}\n```'
+        error_message = f'Error:\n```\n{clean_up_output(e.output)}\n```'
         # Truncate the message to 1950 characters if it's too long
         if len(error_message) > 1950:
-            await ctx.send(f'{error_message[:1947]}...')
+            await ctx.send(f'{clean_up_output(error_message)}...')
         else:
             await ctx.send(error_message)
-        logging.error(f'Command error: {e.output}')
+        logging.error(f'Command error: {clean_up_output(e.output)}')
     except Exception as e:
         await ctx.send(f'An error occurred: {e}')
         logging.exception('Unexpected error')
     else:
         # If there's output, truncate if necessary and send it
         if output:
-            message = f'Output:\n```\n{output}\n```'
+            message = f'Output:\n```\n{clean_up_output(output)}\n```'
             if len(message) > 1950:
-                await ctx.send(f'{message[:1947]}...')
+                await ctx.send(f'{message}...')
             else:
                 await ctx.send(message)
-            logging.info(f'Command output: {output}')
+            logging.info(f'Command output: {clean_up_output(output)}')
         else:
             await ctx.send('Command executed successfully with no output.')
             logging.info('Command executed successfully with no output.')
 
+def clean_up_output(input_string):
+    return input_string.replace('`', "'")[:1947]
 
 bot.run(TOKEN)
