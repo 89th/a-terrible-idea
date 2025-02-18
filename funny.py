@@ -17,7 +17,7 @@ TOKEN = os.getenv('TOKEN_DISCORD_BOT')
 
 bot = commands.Bot(command_prefix='', intents=intents)
 
-running_processes = {}
+running_processes = {}  # Store processes per channel
 
 
 @bot.event
@@ -43,7 +43,7 @@ async def exec_command(ctx, *, command):
         stderr=asyncio.subprocess.PIPE
     )
 
-    running_processes[ctx.message.id] = process
+    running_processes[channel.id] = process
 
     output = []
 
@@ -63,7 +63,7 @@ async def exec_command(ctx, *, command):
     await asyncio.gather(stdout_task, stderr_task)
     await process.wait()
 
-    running_processes.pop(ctx.message.id, None)
+    running_processes.pop(channel.id, None)
 
     final_output = "\n".join(output) or "No output."
     await message.edit(content=f"Final Output:\n```\n{final_output[:1947]}\n```")
@@ -71,14 +71,13 @@ async def exec_command(ctx, *, command):
 
 @bot.command(name='execstop')
 async def exec_stop(ctx):
-    process = running_processes.pop(ctx.message.id, None)
+    process = running_processes.pop(ctx.channel.id, None)
 
     if process:
         try:
-            os.kill(process.pid, signal.SIGKILL)
+            process.kill()
             await ctx.send("The command has been forcefully stopped.")
-            logging.info(
-                f'Process {process.pid} forcefully stopped with SIGKILL.')
+            logging.info(f'Process {process.pid} forcefully stopped.')
         except Exception as e:
             await ctx.send(f"Error while stopping process: {e}")
             logging.error(f"Error while stopping process {process.pid}: {e}")
@@ -89,7 +88,7 @@ async def exec_stop(ctx):
 def clean_up_output(input_string):
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     clean_output = ansi_escape.sub('', input_string)
-    return clean_output.replace('`', "'").replace('', "")[:1947]
+    return clean_output.replace('`', "'").replace('\x03', "")[:1947]
 
 
 bot.run(TOKEN)
