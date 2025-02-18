@@ -39,43 +39,22 @@ async def exec_command(ctx, *, command):
     process = subprocess.Popen(command, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, shell=True, universal_newlines=True)
 
-    running_processes[ctx.message.id] = process
-
-    output = ''
-
-    async def stream_output():
-        nonlocal output
-        try:
-            while True:
-                line = process.stdout.readline()
-                if line:
-                    output += line
-                    if len(output) > 2000:
-                        output = output[-2000:]
-
-                    await message.edit(content=f"Output:\n```\n{clean_up_output(output)}\n```")
-                    logging.info(f'Output: {line.strip()}')
-
-                elif process.poll() is not None:
-                    break
-                await asyncio.sleep(1)
-        except Exception as e:
-            logging.exception("Error while streaming output")
-            await message.edit(content=f"An error occurred: {e}")
-
-    bot.loop.create_task(stream_output())
-
     try:
-        await asyncio.wait_for(process.communicate(), timeout=60)
+        output, error = await asyncio.wait_for(process.communicate(), timeout=60)
+
+        # Handle the output
+        if output:
+            await message.edit(content=f"Output:\n```\n{clean_up_output(output)}\n```")
+        if error:
+            await message.edit(content=f"Error:\n```\n{clean_up_output(error)}\n```")
+
     except asyncio.TimeoutError:
         process.kill()
         await message.edit(content="Command timed out and was terminated.")
         logging.warning("Command timed out and was terminated.")
-
-    _, error = process.communicate()
-    if error:
-        await message.edit(content=f"Error:\n```\n{clean_up_output(error)}\n```")
-        logging.error(f'Command error: {clean_up_output(error)}')
+    except Exception as e:
+        await message.edit(content=f"An error occurred: {e}")
+        logging.exception("Error while executing command")
 
 
 @bot.command(name='execstop')
