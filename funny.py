@@ -1,3 +1,4 @@
+import re
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -76,7 +77,9 @@ async def exec_stop(ctx):
 
 
 def clean_up_output(input_string):
-    return input_string.replace('`', "'").replace('', "")[:1947]
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    clean_output = ansi_escape.sub('', input_string)
+    return clean_output.replace('`', "'").replace('', "")[:1947]
 
 
 bot.run(TOKEN)
