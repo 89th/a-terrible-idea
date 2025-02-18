@@ -40,7 +40,8 @@ async def exec_command(ctx, *, command):
                                stderr=subprocess.PIPE, shell=True, universal_newlines=True)
 
     try:
-        output, error = await asyncio.wait_for(process.communicate(), timeout=60)
+        # Use communicate() and wait for the process to finish
+        output, error = await asyncio.to_thread(process.communicate)
 
         # Handle the output
         if output:
