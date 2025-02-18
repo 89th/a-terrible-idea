@@ -36,12 +36,17 @@ async def exec_command(ctx, *, command):
     channel = ctx.channel
     message = await channel.send("Executing command...")
 
+    # Set the TERM environment variable to simulate a terminal (fixes the "unknown" terminal error)
+    env = os.environ.copy()
+    env['TERM'] = 'xterm-256color'  # Simulates an xterm terminal
+
     # Create subprocess in a new process group (for killing all children)
     process = await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        preexec_fn=os.setsid  # Makes the process its own process group
+        preexec_fn=os.setsid,  # Makes the process its own process group
+        env=env  # Pass the modified environment to the subprocess
     )
 
     if channel.id not in running_processes:
