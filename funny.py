@@ -37,26 +37,36 @@ async def exec_command(ctx, *, command):
     channel = ctx.channel
     message = await channel.send("Executing command...")
 
-    process = subprocess.Popen(command, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, shell=True, universal_newlines=True)
+    process = await asyncio.create_subprocess_shell(
+        command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
 
-    try:
-        # Use communicate() and wait for the process to finish
-        output, error = await asyncio.to_thread(process.communicate)
+    running_processes[ctx.message.id] = process
 
-        # Handle the output
-        if output:
-            await message.edit(content=f"Output:\n```\n{clean_up_output(output)}\n```")
-        if error:
-            await message.edit(content=f"Error:\n```\n{clean_up_output(error)}\n```")
+    output = []
 
-    except asyncio.TimeoutError:
-        process.kill()
-        await message.edit(content="Command timed out and was terminated.")
-        logging.warning("Command timed out and was terminated.")
-    except Exception as e:
-        await message.edit(content=f"An error occurred: {e}")
-        logging.exception("Error while executing command")
+    async def read_stream(stream, output_list):
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            cleaned_line = clean_up_output(line.decode())
+            output_list.append(cleaned_line)
+            # Show last 20 lines
+            await message.edit(content=f"Output:\n```\n{''.join(output_list[-20:])}\n```")
+
+    stdout_task = asyncio.create_task(read_stream(process.stdout, output))
+    stderr_task = asyncio.create_task(read_stream(process.stderr, output))
+
+    await asyncio.gather(stdout_task, stderr_task)
+    await process.wait()
+
+    running_processes.pop(ctx.message.id, None)
+
+    final_output = "\n".join(output) or "No output."
+    await message.edit(content=f"Final Output:\n```\n{final_output[:1947]}\n```")
 
 
 @bot.command(name='execstop')
