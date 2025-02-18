@@ -17,13 +17,13 @@ TOKEN = os.getenv('TOKEN_DISCORD_BOT')
 
 bot = commands.Bot(command_prefix='', intents=intents)
 
-running_processes = {}  # Store processes per channel as lists
+running_processes = {}
 
 
 @bot.event
 async def on_ready():
     logging.info(f'Logged in as {bot.user.name}')
-    channel_id = 1224502675148771348  # Replace with your channel ID
+    channel_id = 1224502675148771348
     channel = bot.get_channel(channel_id)
     if channel:
         await channel.send("I am online. Please kill me.")
@@ -36,23 +36,24 @@ async def exec_command(ctx, *, command):
     channel = ctx.channel
     message = await channel.send("Executing command...")
 
-    # Set the TERM environment variable to simulate a terminal (fixes the "unknown" terminal error)
     env = os.environ.copy()
-    env['TERM'] = 'xterm-256color'  # Simulates an xterm terminal
+    env['TERM'] = 'xterm'
 
-    # Create subprocess in a new process group (for killing all children)
+    if not command.startswith("stdbuf"):
+        command = f"stdbuf -oL {command}"
+
     process = await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        preexec_fn=os.setsid,  # Makes the process its own process group
-        env=env  # Pass the modified environment to the subprocess
+        preexec_fn=os.setsid,
+        env=env
     )
 
     if channel.id not in running_processes:
         running_processes[channel.id] = []
 
-    running_processes[channel.id].append(process)  # Store process in list
+    running_processes[channel.id].append(process)
 
     output = []
 
@@ -87,7 +88,6 @@ async def exec_stop(ctx):
 
     for process in processes:
         try:
-            # Kill entire process group
             os.killpg(os.getpgid(process.pid), signal.SIGTERM)
             await ctx.send(f"Process {process.pid} and its children have been stopped.")
             logging.info(
