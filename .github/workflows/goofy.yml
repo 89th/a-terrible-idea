@@ -1,25 +1,42 @@
-# This workflow will commit crimes untold
-# For more information see: https://www.youtube.com/watch?v=H1-mrWXcHno
+# AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
-name: Evil CI
+name: PYTHON IN THE CODE OH NO
 
 on:
   push:
-    branches: [ main ]
+    branches: [master]
   pull_request:
-    branches: [ main ]
+    branches: [master]
 
 jobs:
   build:
-
-    runs-on: self-hosted
+    runs-on: goofy
 
     steps:
-    - run: rm -rf ./*
-    - uses: actions/checkout@v3
-    - run: sed -i "s/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/$(cat ../../../../../args/.dontaskargs)/g" breaking_discord.py
-    - run: rm -rf ./.git*
-    - run: rsync ./* dontask:~/
-    - continue-on-error: true
-      run: ssh dontask systemctl restart discordbot.service
-    - run: echo "It is done. Unfortunately."
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Stop Service
+        continue-on-error: true
+        run: sudo systemctl is-active a-terrible-idea && sudo systemctl stop a-terrible-idea
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+
+      - name: Create virtual environment
+        run: python -m venv venv
+
+      - name: Install dependencies
+        run: |
+          source venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create .env file
+        run: echo "TOKEN_DISCORD_BOT=${{ secrets.TOKEN_DISCORD_BOT }}" > .env
+
+      - name: Start Service
+        run: sudo systemctl start a-terrible-idea
