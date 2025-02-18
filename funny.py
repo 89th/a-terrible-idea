@@ -17,17 +17,16 @@ TOKEN = os.getenv('TOKEN_DISCORD_BOT')
 
 bot = commands.Bot(command_prefix='', intents=intents)
 
-running_processes = {}  # Store processes per channel
+running_processes = {}  # Store processes per channel as lists
 
 
 @bot.event
 async def on_ready():
     logging.info(f'Logged in as {bot.user.name}')
-    # Dont Ask Channel
-    channel_id = 1224502675148771348
+    channel_id = 1224502675148771348  # Replace with your channel ID
     channel = bot.get_channel(channel_id)
     if channel:
-        await channel.send("I am online. Pleae kill me.")
+        await channel.send("I am online. Please kill me.")
 
 
 @bot.command(name='exec')
@@ -37,13 +36,18 @@ async def exec_command(ctx, *, command):
     channel = ctx.channel
     message = await channel.send("Executing command...")
 
+    # Create subprocess in a new process group (for killing all children)
     process = await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
+        stderr=asyncio.subprocess.PIPE,
+        preexec_fn=os.setsid  # Makes the process its own process group
     )
 
-    running_processes[channel.id] = process
+    if channel.id not in running_processes:
+        running_processes[channel.id] = []
+
+    running_processes[channel.id].append(process)  # Store process in list
 
     output = []
 
@@ -54,7 +58,6 @@ async def exec_command(ctx, *, command):
                 break
             cleaned_line = clean_up_output(line.decode())
             output_list.append(cleaned_line)
-            # Show last 20 lines
             await message.edit(content=f"Output:\n```\n{''.join(output_list[-20:])}\n```")
 
     stdout_task = asyncio.create_task(read_stream(process.stdout, output))
@@ -63,7 +66,7 @@ async def exec_command(ctx, *, command):
     await asyncio.gather(stdout_task, stderr_task)
     await process.wait()
 
-    running_processes.pop(channel.id, None)
+    running_processes[channel.id].remove(process)
 
     final_output = "\n".join(output) or "No output."
     await message.edit(content=f"Final Output:\n```\n{final_output[:1947]}\n```")
@@ -71,18 +74,22 @@ async def exec_command(ctx, *, command):
 
 @bot.command(name='execstop')
 async def exec_stop(ctx):
-    process = running_processes.pop(ctx.channel.id, None)
-
-    if process:
-        try:
-            process.kill()
-            await ctx.send("The command has been forcefully stopped.")
-            logging.info(f'Process {process.pid} forcefully stopped.')
-        except Exception as e:
-            await ctx.send(f"Error while stopping process: {e}")
-            logging.error(f"Error while stopping process {process.pid}: {e}")
-    else:
+    if ctx.channel.id not in running_processes or not running_processes[ctx.channel.id]:
         await ctx.send("No running command found to stop.")
+        return
+
+    processes = running_processes.pop(ctx.channel.id, [])
+
+    for process in processes:
+        try:
+            # Kill entire process group
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            await ctx.send(f"Process {process.pid} and its children have been stopped.")
+            logging.info(
+                f"Process {process.pid} and its group forcefully stopped.")
+        except Exception as e:
+            await ctx.send(f"Error stopping process {process.pid}: {e}")
+            logging.error(f"Error stopping process {process.pid}: {e}")
 
 
 def clean_up_output(input_string):
